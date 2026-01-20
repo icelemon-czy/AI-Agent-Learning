@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:5.18
+    container_name: hello_agents_neo4j
+    ports:
+      - 7474:7474   # HTTP Web UI
+      - 7687:7687   # Bolt 协议端口
+    environment:
+      # 对应 .env 中的: NEO4J_USERNAME / NEO4J_PASSWORD
+      NEO4J_AUTH: neo4j/hello-agents-password
+      NEO4J_dbms_connector_bolt_advertised__address: localhost:7687
+      # 允许从文件URL导入CSV
+      NEO4J_dbms_security_allow__csv__import__from__file__urls: "true"
+      # 设置导入目录
+      NEO4J_dbms_directories_import: "/import"
+      # 启用 APOC 插件
+      NEO4J_PLUGINS: '["apoc"]'
+      # APOC 配置
+      NEO4J_apoc_export_file_enabled: "true"
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_apoc_import_file_use__neo4j__config: "true"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_plugins:/plugins
+
+  # Qdrant 向量数据库服务的配置 (根据你的 .env QDRANT 配置添加)
+  qdrant:
+    image: qdrant/qdrant
+    container_name: hello_agents_qdrant
+    ports:
+      - "6333:6333" # HTTP API 端口
+    volumes:
+      - ./qdrant_storage:/qdrant/storage
+
+# === 修复点：添加顶层 volumes 声明 ===
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_plugins:

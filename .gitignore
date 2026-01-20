@@ -1,4 +1,38 @@
-.env
-venv/
+# --- Python & Venv ---
 __pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env.local
+
+# --- Environment Variables (Crucial Security) ---
+# 忽略 .env 文件，防止 API Key 泄露
+.env
+
+memory_data/
+
+# --- IDE Settings ---
+.vscode/
+.idea/
+*.swp
 .DS_Store
+
+# --- Docker ---
+# 忽略本地挂载的数据库数据（不要上传几个G的数据库文件）
+neo4j_data/
+neo4j_logs/
+neo4j_plugins/
+qdrant_storage/
+
+# --- Application Data ---
+# 忽略本地生成的知识库、日志或临时文件
+knowledge_base/
+*.log
+output/
+
+# --- Build & Distribution ---
+build/
+dist/
+*.egg-info/
