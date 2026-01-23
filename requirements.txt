@@ -1,3 +1,4 @@
+ollama==0.6.1
 numpy==1.26.4 # 强制使用兼容版本的 Numpy
 dotenv==0.9.9
 dashscope==1.25.7
