@@ -122,7 +122,7 @@ if __name__ == '__main__':
     messages = [{"role": "user", "content": "请介绍一下你是谁？ 大约200字左右"}]
     result = llmClient.think(messages,stream=False)
     print(result)
-    print("EEEEEEEEEEEEE")
+    print(" ")
     result = llmClient.think(messages,stream=True)
     print(result)
     
