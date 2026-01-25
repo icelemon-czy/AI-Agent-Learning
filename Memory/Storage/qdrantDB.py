@@ -382,7 +382,6 @@ class QdrantVectorStore:
             logger.error(f"❌ 删除向量失败: {e}")
             return False        
 
-    
     def delete_memories(self, memory_ids: List[str]):
         """
         删除指定记忆（通过payload中的 memory_id 过滤删除）
@@ -446,7 +445,7 @@ class QdrantVectorStore:
             return {"store_type": "qdrant", "name": self.collection_name}
         info["store_type"] = "qdrant"
         return info
-         
+
     def clear_collection(self) -> bool:
         """
         清空集合
