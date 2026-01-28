@@ -274,14 +274,12 @@ def get_text_embedder() -> EmbeddingModel:
             _embedder = _build_embedding_model()
         return _embedder
 
-
 def get_dimension(default: int = 384) -> int:
     """获取统一向量维度（失败回退默认值）"""
     try:
         return int(getattr(get_text_embedder(), "dimension", default))
     except Exception:
         return int(default)
-
 
 def refresh_embedder() -> EmbeddingModel:
     """强制重建嵌入实例（可用于动态切换环境变量）"""
