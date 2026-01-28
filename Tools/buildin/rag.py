@@ -28,8 +28,11 @@ answer = rag.run({"action": "ask", "question": "什么是机器学习？"})
 
 class Rag(Tool):
     def __init__(self,
-                knowledgeBaseURL:str = "./knowledge_base",
-                knowledgeNameSpace:str = "default",
+                knowledgeBaseURL:str = "./knowledge_database",
+                # 类似于数据库中的表, 物理隔离
+                collection:str = "rag_knowledge_database",
+                # 类似于数据库中的字段，逻辑隔离 （区分不同数据库/不同项目...)
+                namespace:str = "default",
                 # 向量数据库配置
                 qdrant_url: str = None,
                 qdrant_api_key: str = None,              
@@ -40,21 +43,45 @@ class Rag(Tool):
             description="RAG工具 - 支持多格式文档检索增强生成，提供智能问答能力"
         )
         self.knowledgeBaseURL = knowledgeBaseURL
-        self.knowledgeNameSpaces = [knowledgeNameSpace]
-        self.currentKnowledgeNameSpace = knowledgeNameSpace
+        self.collection = collection
+        self.namespace = namespace
         self.qdrant_url = qdrant_url or os.getenv("QDRANT_URL")
         self.qdrant_api_key = qdrant_api_key or os.getenv("QDRANT_API_KEY")
         self.llm = llm
+        if llm is None:
+            self.llm = CoreLLM()
         
         # 确保知识库目录存在
         os.makedirs(knowledgeBaseURL, exist_ok=True)
-    
+        self._initComponents()
+
+    def _initComponents(self):
+        """
+        初始化RAG组件
+        """
+        try:
+            # 初始化默认命名空间的 RAG 管道
+            default_pipeline = self.create_rag_pipeline(
+                qdrant_url=self.qdrant_url,
+                qdrant_api_key=self.qdrant_api_key,
+                collection=self.collection,
+                namespace=self.namespace
+            )
+            self._pipeline[self.namespace] = default_pipeline
+
+            self.initialized = True
+            print(f"RAG工具初始化成功: namespace={self.namespace}, collection={self.collection}")
+        except Exception as e:
+            self.initialized = False
+            self.init_error = str(e)
+            print(f"RAG工具初始化失败: {e}")
+
     def create_rag_pipeline(
         self,
         qdrant_url: str = None,
         qdrant_api_key: str = None,     
-        knowledgeBaseURL:str = "./knowledge_base",
-        knowledgeNameSpace:str = "default"
+        collection:str = "rag_knowledge_database",
+        namespace:str = "default"
     ) -> Dict[str,Any]:
         """
         Create a complete RAG pipeline with Qdrant and unified embedding.
@@ -67,7 +94,7 @@ class Rag(Tool):
         qdrantDB = QdrantVectorStore(
             url=qdrant_url,
             api_key=qdrant_api_key,
-            collection_name=knowledgeNameSpace,
+            collection_name=collection,
             vector_size=dimension,
             distance="cosine"
         )
@@ -80,18 +107,68 @@ class Rag(Tool):
                 paths=file_paths,
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap,
-                namespace=knowledgeNameSpace,
+                namespace=namespace,
                 source_label="rag"
             )
             # index chunk and store in index db.
-            self.index_chunks()
+            self.index_chunks(
+                store=qdrantDB,
+                chunks=chunks,
+                rag_namespace=namespace     
+            )
+            return len(chunks)
         
         # Search Similar Document
         def search(query:str,topk:int = 8,score_threshold: Optional[float]=None):
-            pass
-
-        pass
-
+            """Search RAG knowledge base"""
+            return self.search_vectors(
+                store=qdrantDB,
+                query=query,
+                top_k=topk,
+                namespace=namespace,
+                score_threshold=score_threshold
+            )
+        
+        # Advamced Search Similar Document
+        def search_advanced(
+            query: str, 
+            top_k: int = 8, 
+            enable_mqe: bool = False,
+            enable_hyde: bool = False,
+            score_threshold: Optional[float] = None
+        ):
+            """Advanced search with query expansion"""
+            """
+            原理：不仅仅使用原始查询，还使用了查询扩展 (Query Expansion) 技术。
+            MQE (Multi-Query Expansion)：利用 LLM 生成多个与原问题语义相关或互补的不同问法（例如问“ML是什么”，扩展为“机器学习定义”、“ML核心概念”）。
+            HyDE (Hypothetical Document Embeddings)：利用 LLM 生成一个“假设性答案”，然后用这个答案去库里搜（因为答案和文档的相似度通常比问题和文档的相似度更高）。
+            流程：原始查询 + LLM扩展查询 -> 分别搜索 -> 合并结果 -> 去重排序。
+            特点：检索精度（Recall）通常更高，能召回一些字面不匹配但语义相关的文档，但因为要调 LLM 做扩展，速度较慢，且消耗 Token。
+            适用场景：用户问题比较模糊、简短，或者标准检索效果不够好时。
+            """
+            return self.search_vectors_expanded(
+                store=qdrantDB,
+                query=query,
+                top_k=top_k,
+                rag_namespace=namespace,
+                enable_mqe=enable_mqe,
+                enable_hyde=enable_hyde,
+                score_threshold=score_threshold
+            )
+    
+        def get_stats():
+            """Get qdrantDB statistics"""
+            return qdrantDB.get_collection_stats()
+        
+        return {
+            "store":qdrantDB,
+            "namespace":namespace,
+            "add_documents":add_documents,
+            "search":search,
+            "search_advanced":search_advanced,
+            "get_stats":get_stats
+        }
+    
     def load_and_chunk_texts(
             self,
             paths: List[str], 
@@ -167,8 +244,178 @@ class Rag(Tool):
             print("End load and chunk documents.")
             return chunks
 
-    def index_chunks(self):
-        pass
+    def index_chunks(self,
+        store = None, 
+        chunks: List[Dict] = None, 
+        cache_db: Optional[str] = None, 
+        batch_size: int = 64,
+        rag_namespace: str = "default"
+        ):
+        """
+        Index markdown chunks with unified embedding and Qdrant storage.
+        """
+        if chunks is None or len(chunks) == 0:
+            print(f"No Chunks to index")  
+
+        # Embedding model
+        embedder = get_text_embedder()
+        dimension = get_dimension(384)
+
+        # Create Vector DB if not provided
+        if store is None:
+            store = self._create_default_vector_store(dimension=dimension,collection_name="rag_vectors")
+            print(f"Created default Qdrant store with dimension {dimension}")
+        
+        # Preprocess markdown texts for better embeddings
+        processed_texts = []
+        for chunk in chunks:
+            raw_content = chunk["content"]
+            processed_content = self._preprocess_markdown_for_embedding(raw_content)
+            processed_texts.append(processed_content)  
+
+        print(f"Embedding start: total_texts={len(processed_texts)} batch_size={batch_size}")
+        
+        # Batch encoding with unified embedder
+        vecs: List[List[float]] = []
+        for i in range(0, len(processed_texts), batch_size):
+            part = processed_texts[i:i+batch_size]
+            try:
+                # Use unified embedder directly (handles caching internally)
+                part_vecs = embedder.encode(part)
+                # Normalize to List[List[float]]
+                if not isinstance(part_vecs, list):
+                    # 单个numpy数组转为列表中的列表
+                    if hasattr(part_vecs, "tolist"):
+                        part_vecs = [part_vecs.tolist()]
+                    else:
+                        part_vecs = [list(part_vecs)]
+                else:
+                    # 检查是否是嵌套列表
+                    if part_vecs and not isinstance(part_vecs[0], (list, tuple)) and hasattr(part_vecs[0], "__len__"):
+                        # numpy数组列表 -> 转换每个数组
+                        normalized_vecs = []
+                        for v in part_vecs:
+                            if hasattr(v, "tolist"):
+                                normalized_vecs.append(v.tolist())
+                            else:
+                                normalized_vecs.append(list(v))
+                        part_vecs = normalized_vecs
+                    elif part_vecs and not isinstance(part_vecs[0], (list, tuple)):
+                        # 单个向量被误判为列表，实际应该包装成[[...]]
+                        if hasattr(part_vecs, "tolist"):
+                            part_vecs = [part_vecs.tolist()]
+                        else:
+                            part_vecs = [list(part_vecs)]
+                for v in part_vecs:
+                    try:
+                        # 确保向量是float列表
+                        if hasattr(v, "tolist"):
+                            v = v.tolist()
+                        v_norm = [float(x) for x in v]
+                        if len(v_norm) != dimension:
+                            print(f"[WARNING] 向量维度异常: 期望{dimension}, 实际{len(v_norm)}")
+                            # 用零向量填充或截断
+                            if len(v_norm) < dimension:
+                                v_norm.extend([0.0] * (dimension - len(v_norm)))
+                            else:
+                                v_norm = v_norm[:dimension]
+                        vecs.append(v_norm)
+                    except Exception as e:
+                        print(f"[WARNING] 向量转换失败: {e}, 使用零向量")
+                        vecs.append([0.0] * dimension)
+            except Exception as e:
+                print(f"[WARNING] Batch {i} encoding failed: {e}")
+                print(f"[RAG] Retrying batch {i} with smaller chunks...")
+                # 尝试重试：将批次分解为更小的块
+                success = False
+                for j in range(0, len(part), 8):  # 更小的批次
+                    small_part = part[j:j+8]
+                    try:
+                        import time
+                        time.sleep(2)  # 等待2秒避免频率限制
+                        
+                        small_vecs = embedder.encode(small_part)
+                        # Normalize to List[List[float]]
+                        if isinstance(small_vecs, list) and small_vecs and not isinstance(small_vecs[0], list):
+                            small_vecs = [small_vecs]
+                        
+                        for v in small_vecs:
+                            if hasattr(v, "tolist"):
+                                v = v.tolist()
+                            try:
+                                v_norm = [float(x) for x in v]
+                                if len(v_norm) != dimension:
+                                    print(f"[WARNING] 向量维度异常: 期望{dimension}, 实际{len(v_norm)}")
+                                    if len(v_norm) < dimension:
+                                        v_norm.extend([0.0] * (dimension - len(v_norm)))
+                                    else:
+                                        v_norm = v_norm[:dimension]
+                                vecs.append(v_norm)
+                                success = True
+                            except Exception as e2:
+                                print(f"[WARNING] 小批次向量转换失败: {e2}")
+                                vecs.append([0.0] * dimension)
+                    except Exception as e2:
+                        print(f"[WARNING] 小批次 {j//8} 仍然失败: {e2}")
+                        # 为这个小批次创建零向量
+                        for _ in range(len(small_part)):
+                            vecs.append([0.0] * dimension)
+                if not success:
+                    print(f"[ERROR] 批次 {i} 完全失败，使用零向量")
+            print(f"Embedding progress: {min(i+batch_size, len(processed_texts))}/{len(processed_texts)}")
+
+        # Prepare metadata with RAG tags
+        metas:List[Dict] = []
+        ids: List[str] =[]
+        for chunk in chunks:
+            meta = {
+                "memory_id": chunk["id"],
+                "user_id": "rag_user",
+                "memory_type": "rag_chunk",
+                "content": chunk["content"],  # Keep original markdown content
+                "data_source": "rag_pipeline",  # RAG identification tag
+                "rag_namespace": rag_namespace,
+                "is_rag_data": True,  # Clear RAG data marker
+            }
+            # Merge chunk metadata
+            meta.update(chunk.get("metadata", {}))
+            metas.append(meta)
+            ids.append(chunk["id"])
+        
+        print(f"Qdrant upsert start: n={len(vecs)}")
+        success = store.add_vectors(vectors=vecs, metadata=metas, ids=ids)
+        if success:
+            print(f"Qdrant upsert done: {len(vecs)} vectors indexed")
+        else:
+            print(f"Qdrant upsert failed")
+            raise RuntimeError("Failed to index vectors to Qdrant")
+
+    def _preprocess_markdown_for_embedding(self,text: str) -> str:
+        """
+        Preprocess markdown text for better embedding quality.
+        Removes excessive markup while preserving semantic content.
+        """
+        import re
+        
+        # Remove markdown headers symbols but keep the text
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+        
+        # Remove markdown links but keep the text
+        text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+        
+        # Remove markdown emphasis markers
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # bold
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)      # italic
+        text = re.sub(r'`([^`]+)`', r'\1', text)        # inline code
+        
+        # Remove markdown code blocks but keep content
+        text = re.sub(r'```[^\n]*\n([\s\S]*?)```', r'\1', text)
+        
+        # Remove excessive whitespace
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+        text = re.sub(r'[ \t]+', ' ', text)
+        
+        return text.strip()
 
     def _convert_to_markdown(
             self,path: str) -> str:
@@ -457,3 +704,193 @@ class Rag(Tool):
             0x2B820 <= code <= 0x2CEAF or
             0xF900 <= code <= 0xFAFF
         )
+    
+    def _create_default_vector_store(dimension:int = 384, collection_name:str = "rag_vectors") -> QdrantVectorStore:
+        """
+        Create default Qdrant vector store with RAG-optimized settings.
+        使用连接管理器避免重复连接。
+        """
+        # Check for Qdrant configuration
+        qdrant_url = os.getenv("QDRANT_URL")
+        qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        
+        # 使用连接管理器
+        from ...Memory.Storage.qdrantDB import QdrantConnectionManager
+        return QdrantConnectionManager.get_instance(
+            url=qdrant_url,
+            api_key=qdrant_api_key,
+            collection_name=collection_name,
+            vector_size=dimension,
+            distance="cosine"
+        )
+
+    def search_vectors(
+        self,
+        store = None, 
+        query: str = "", 
+        top_k: int = 8, 
+        namespace: Optional[str] = None, 
+        only_rag_data: bool = True, 
+        score_threshold: Optional[float] = None
+    ) -> List[Dict]:
+        """
+        Search RAG vectors using unified embedding and Qdrant.
+        """
+        if not query:
+            return []
+        
+        # Get default store if not provided
+        if store is None:
+            store = self._create_default_vector_store()
+        
+        # Convert query into embedding
+        queryEmbedding = self.embed_query(query)
+        
+        # Build filter for RAG data
+        where = {"memory_type": "rag_chunk"}
+        if only_rag_data:
+            where["is_rag_data"] = True
+            where["data_source"] = "rag_pipeline"
+        if namespace:
+            where["rag_namespace"] = namespace
+        
+        try:
+            return store.search_similar(
+                query_vector=queryEmbedding, 
+                limit=top_k, 
+                score_threshold=score_threshold, 
+                where=where
+            )
+        except Exception as e:
+            print(f"[WARNING] RAG search failed: {e}")
+            return []
+    
+    def embed_query(self,query: str) -> List[float]:
+        """
+        Embed query using unified embedding (百炼 with fallback).
+        """
+        embedder = get_text_embedder()
+        dimension = get_dimension(384)
+        try:
+            vec = embedder.encode(query)
+            
+            # Normalize to List[float]
+            if hasattr(vec, "tolist"):
+                vec = vec.tolist()
+            
+            # 处理嵌套列表情况
+            if isinstance(vec, list) and vec and isinstance(vec[0], (list, tuple)):
+                vec = vec[0]  # Extract first vector if nested
+            
+            # 转换为float列表
+            result = [float(x) for x in vec]
+            
+            # 检查维度
+            if len(result) != dimension:
+                print(f"[WARNING] Query向量维度异常: 期望{dimension}, 实际{len(result)}")
+                # 用零向量填充或截断
+                if len(result) < dimension:
+                    result.extend([0.0] * (dimension - len(result)))
+                else:
+                    result = result[:dimension]
+            
+            return result
+        except Exception as e:
+            print(f"[WARNING] Query embedding failed: {e}")
+            # Return zero vector as fallback
+            return [0.0] * dimension
+
+    def search_vectors_expanded(
+        self,
+        store = None,
+        query: str = "",
+        top_k: int = 8,
+        namespace: Optional[str] = None,
+        only_rag_data: bool = True,
+        score_threshold: Optional[float] = None,
+        enable_mqe: bool = False,
+        mqe_expansions: int = 2,
+        enable_hyde: bool = False,
+        candidate_pool_multiplier: int = 4,
+    ) -> List[Dict]:
+        """
+        Search with query expansion using unified embedding and Qdrant.
+        """
+        if not query:
+            return []
+        
+        # Get default store if not provided
+        if store is None:
+            store = self._create_default_vector_store()
+        
+        # expansions
+        expansions: List[str] = [query]
+        
+        if enable_mqe and mqe_expansions > 0:
+            expansions.extend(self._prompt_mqe(query, mqe_expansions))
+        if enable_hyde:
+            hyde_text = self._prompt_hyde(query)
+            if hyde_text:
+                expansions.append(hyde_text)
+
+        # unique and trim
+        uniq: List[str] = []
+        for e in expansions:
+            if e and e not in uniq:
+                uniq.append(e)
+        expansions = uniq[: max(1, len(uniq))]
+
+        # distribute pool per expansion
+        pool = max(top_k * candidate_pool_multiplier, 20)
+        per = max(1, pool // max(1, len(expansions)))
+
+        # Build filter for RAG data
+        where = {"memory_type": "rag_chunk"}
+        if only_rag_data:
+            where["is_rag_data"] = True
+            where["data_source"] = "rag_pipeline"
+        if namespace:
+            where["rag_namespace"] = namespace
+
+        # collect hits across expansions
+        agg: Dict[str, Dict] = {}
+        for q in expansions:
+            qv = self.embed_query(q)
+            hits = store.search_similar(query_vector=qv, limit=per, score_threshold=score_threshold, where=where)
+            for h in hits:
+                mid = h.get("metadata", {}).get("memory_id", h.get("id"))
+                s = float(h.get("score", 0.0))
+                if mid not in agg or s > float(agg[mid].get("score", 0.0)):
+                    agg[mid] = h
+        # return top by score
+        merged = list(agg.values())
+        merged.sort(key=lambda x: float(x.get("score", 0.0)), reverse=True)
+        return merged[:top_k]
+
+    def _prompt_mqe(self,query: str, n: int) -> List[str]:
+        try:
+            from ...Core import llm
+            llm = llm.CoreLLM()
+            prompt = [
+                {"role": "system", "content": "你是检索查询扩展助手。生成语义等价或互补的多样化查询。使用中文，简短，避免标点。"},
+                {"role": "user", "content": f"原始查询：{query}\n请给出{n}个不同表述的查询，每行一个。"}
+            ]
+            text = llm.invoke(prompt)
+            lines = [ln.strip("- \t") for ln in (text or "").splitlines()]
+            outs = [ln for ln in lines if ln]
+            return outs[:n] or [query]
+        except Exception:
+            return [query]
+
+    def _prompt_hyde(self,query: str) -> Optional[str]:
+        try:
+            from ...Core import llm
+            llm = llm.CoreLLM()
+            prompt = [
+                {"role": "system", "content": "根据用户问题，先写一段可能的答案性段落，用于向量检索的查询文档（不要分析过程）。"},
+                {"role": "user", "content": f"问题：{query}\n请直接写一段中等长度、客观、包含关键术语的段落。"}
+            ]
+            return llm.invoke(prompt)
+        except Exception:
+            return None
+
