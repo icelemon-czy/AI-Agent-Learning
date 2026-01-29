@@ -23,17 +23,17 @@ class Tool(ABC):
         pass
     
     @abstractmethod
-    def get_parameters(self) -> List[ToolParameter]:
+    def describe_inputs(self) -> List[ToolParameter]:
         """获取工具参数定义"""
         pass
 
-    # def to_dict(self) -> Dict[str, Any]:
-    #     """转换为字典格式"""
-    #     return {
-    #         "name": self.name,
-    #         "description": self.description,
-    #         "parameters": [param.dict() for param in self.get_parameters()]
-    #     }
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典格式"""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "parameters": [param.dict() for param in self.describe_inputs()]
+        }
 
     def __str__(self) -> str:
         return f"Tool(name={self.name})"

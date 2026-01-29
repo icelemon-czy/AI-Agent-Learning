@@ -613,7 +613,100 @@ class Rag(Tool):
             content = content[:300] + "..."
         return content
 
-    def get_parameters(self) -> List[ToolParameter]:
+    def get_relevant_context(self, query: str, limit: int = 3, max_chars: int = 1200, namespace: Optional[str] = None) -> str:
+        """为查询获取相关上下文
+        
+        这个方法可以被Agent调用来获取相关的知识库上下文
+        """
+        try:
+            if not query:
+                return ""
+            
+            # 使用统一 RAG 管道搜索
+            pipeline = self._get_pipeline(namespace)
+            results = pipeline["search"](
+                query=query,
+                top_k=limit
+            )
+            
+            if not results:
+                return ""
+            
+            # 合并上下文
+            context_parts = []
+            for result in results:
+                content = result.get("metadata", {}).get("content", "")
+                if content:
+                    context_parts.append(content)
+            
+            merged_context = "\n\n".join(context_parts)
+            
+            # 限制长度
+            if len(merged_context) > max_chars:
+                merged_context = merged_context[:max_chars] + "..."
+            
+            return merged_context
+            
+        except Exception as e:
+            return f"获取上下文失败: {str(e)}"
+
+    def batch_add_texts(self, texts: List[str], document_ids: Optional[List[str]] = None, chunk_size: int = 800, chunk_overlap: int = 100, namespace: Optional[str] = None) -> str:
+        """批量添加文本"""
+        try:
+            if not texts:
+                return "❌ 文本列表不能为空"
+            
+            if document_ids and len(document_ids) != len(texts):
+                return "❌ 文本数量和文档ID数量不匹配"
+            
+            pipeline = self._get_pipeline(namespace)
+            t0 = time.time()
+            
+            total_chunks = 0
+            successful_files = []
+            
+            for i, text in enumerate(texts):
+                if not text or not text.strip():
+                    continue
+                    
+                doc_id = document_ids[i] if document_ids else f"batch_text_{i}"
+                tmp_path = os.path.join(self.knowledge_base_path, f"{doc_id}.md")
+                
+                try:
+                    with open(tmp_path, 'w', encoding='utf-8') as f:
+                        f.write(text)
+                    
+                    chunks_added = pipeline["add_documents"](
+                        file_paths=[tmp_path],
+                        chunk_size=chunk_size,
+                        chunk_overlap=chunk_overlap
+                    )
+                    
+                    total_chunks += chunks_added
+                    successful_files.append(doc_id)
+                    
+                finally:
+                    # 清理临时文件
+                    try:
+                        if os.path.exists(tmp_path):
+                            os.remove(tmp_path)
+                    except Exception:
+                        pass
+            
+            t1 = time.time()
+            process_ms = int((t1 - t0) * 1000)
+            
+            return (
+                f"✅ 批量添加完成\n"
+                f"📊 成功文件: {len(successful_files)}/{len(texts)}\n"
+                f"📊 总分块数: {total_chunks}\n"
+                f"⏱️ 处理时间: {process_ms}ms"
+            )
+            
+        except Exception as e:
+            return f"❌ 批量添加失败: {str(e)}"
+
+    def describe_inputs(self) -> List[ToolParameter]:
         """获取工具参数定义 - Tool基类要求的接口"""
         return [
             # 核心操作参数
@@ -673,3 +766,4 @@ class Rag(Tool):
                 default=True
             )
         ]
+    
