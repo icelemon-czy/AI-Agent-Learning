@@ -1,6 +1,7 @@
 from ..tool import Tool
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
+from ..tool import Tool, ToolParameter
 
 class SearchTool(Tool):
     """
@@ -84,3 +85,14 @@ class SearchTool(Tool):
         # search = GoogleSearch({"q": query, "api_key": self.serpapi_api_key})
         # return search.get_dict().get("organic_results", [])
         return f"SerpApi 搜索结果 for: {query} (请实现实际 API 调用)"
+    
+    def describe_inputs(self) -> List[ToolParameter]:
+        """获取工具参数定义"""
+        return [
+            ToolParameter(
+                name="input",
+                type="string",
+                description="搜索查询关键词",
+                required=True
+            )
+        ]
