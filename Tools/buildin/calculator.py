@@ -52,8 +52,8 @@ class CalculatorTool(Tool):
         Returns:
             计算结果
         """
-        # 支持两种参数格式：input 和 expression
-        expression = parameters.get("input", "") or parameters.get("expression", "")
+
+        expression = parameters.get("input", "") 
         if not expression:
             return "错误：计算表达式不能为空"
 

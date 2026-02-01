@@ -15,4 +15,5 @@ spacy>=3.0  # 确保先安装 spacy
 # 英文小模型 (en_core_web_sm)
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
 # 中文小模型 (zh_core_web_sm)
-https://github.com/explosion/spacy-models/releases/download/zh_core_web_sm-3.7.0/zh_core_web_sm-3.7.0.tar.gz
+https://github.com/explosion/spacy-models/releases/download/zh_core_web_sm-3.7.0/zh_core_web_sm-3.7.0.tar.gzmcp
+mcp==1.26.0

@@ -1,5 +1,5 @@
 from .tool import Tool
-from typing import Any,Optional
+from typing import Any,Optional,Callable
 
 class ToolManager:
     """
@@ -26,7 +26,7 @@ class ToolManager:
         self.tools[tool.name] = tool
         print(f"✅ 工具 '{tool.name}' 已注册。")       
 
-    def registerFunction(self,name:str, description:str, function:callable[[str],str]):
+    def registerFunction(self,name:str, description:str, function:Callable[[str],str]):
         """
         直接注册函数作为工具（简便方式）
 
@@ -76,7 +76,7 @@ class ToolManager:
         if tool:
             try:
                 # 简化参数传递，直接传入字符串
-                tool.run({"input": input})
+                return tool.run({"input": input})
             except Exception as e:
                 return f"错误：执行工具 '{name}' 时发生异常: {str(e)}"
         else:
