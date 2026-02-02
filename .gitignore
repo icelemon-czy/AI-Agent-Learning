@@ -36,3 +36,7 @@ output/
 build/
 dist/
 *.egg-info/
+
+# --- Ignored Skills ---
+SkillDemo/offcial skills/
+SkillDemo/official skills/
