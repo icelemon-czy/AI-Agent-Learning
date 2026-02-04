@@ -4,82 +4,6 @@
   "source": "https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor",
   "elements": [
     {
-      "id": "UNuUv0tQs9HrlL4Ks2YCd",
-      "type": "rectangle",
-      "x": 398.59765625,
-      "y": 145.984375,
-      "width": 586.44921875,
-      "height": 240.29296875,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "strokeStyle": "solid",
-      "roughness": 1,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": null,
-      "index": "a1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 1616022585,
-      "version": 171,
-      "versionNonce": 1808596407,
-      "isDeleted": false,
-      "boundElements": null,
-      "updated": 1770127285477,
-      "link": null,
-      "locked": false
-    },
-    {
-      "id": "97rxATt5_Yip_XvUC55FF",
-      "type": "text",
-      "x": 438,
-      "y": 174.6171875,
-      "width": 492.73974609375,
-      "height": 150,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "strokeStyle": "solid",
-      "roughness": 1,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": null,
-      "index": "a2",
-      "roundness": null,
-      "seed": 204884503,
-      "version": 271,
-      "versionNonce": 108598649,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "8AINvCqqMpfIINKIpukWC",
-          "type": "arrow"
-        },
-        {
-          "id": "SebCNp5nqao3vGAHtbBAm",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1770214738408,
-      "link": null,
-      "locked": false,
-      "text": "My-skill/\n-- SKILL.md         #Required: main instructions\n-- doc/              # Optional: additional document\n    -- advanced.md\n-- scripts/          # Optional: utility scripts\n    -- helper.py",
-      "fontSize": 20,
-      "fontFamily": 5,
-      "textAlign": "left",
-      "verticalAlign": "top",
-      "containerId": null,
-      "originalText": "My-skill/\n-- SKILL.md         #Required: main instructions\n-- doc/              # Optional: additional document\n    -- advanced.md\n-- scripts/          # Optional: utility scripts\n    -- helper.py",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
       "id": "gcQJWd2ak0LcOSXBnUj2u",
       "type": "rectangle",
       "x": 1154.703125,
@@ -118,9 +42,9 @@
       "id": "8AINvCqqMpfIINKIpukWC",
       "type": "arrow",
       "x": 953.7216796875,
-      "y": 213.77273955226738,
-      "width": 200.18036949316684,
-      "height": 0.3604440328585099,
+      "y": 213.42293216664297,
+      "width": 200.1803694931666,
+      "height": 0.010595876035324636,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -136,11 +60,11 @@
         "type": 2
       },
       "seed": 722991737,
-      "version": 87,
-      "versionNonce": 836621337,
+      "version": 89,
+      "versionNonce": 619175063,
       "isDeleted": false,
       "boundElements": null,
-      "updated": 1770211546490,
+      "updated": 1770216188251,
       "link": null,
       "locked": false,
       "points": [
@@ -149,16 +73,12 @@
           0
         ],
         [
-          200.18036949316684,
-          -0.3604440328585099
+          200.1803694931666,
+          -0.010595876035324636
         ]
       ],
       "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "97rxATt5_Yip_XvUC55FF",
-        "focus": -0.4740839138093809,
-        "gap": 22.98193359375
-      },
+      "startBinding": null,
       "endBinding": {
         "elementId": "gcQJWd2ak0LcOSXBnUj2u",
         "focus": 0.5746927105061442,
@@ -1146,10 +1066,10 @@
     {
       "id": "SebCNp5nqao3vGAHtbBAm",
       "type": "arrow",
-      "x": 821.4329433385234,
-      "y": 449.86710730950415,
-      "width": 0.13230932135047624,
-      "height": 107.55487737017654,
+      "x": 821.4289183767581,
+      "y": 453.1390178950425,
+      "width": 0.13657736020718403,
+      "height": 111.44423145535046,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1165,11 +1085,11 @@
         "type": 2
       },
       "seed": 1187866169,
-      "version": 39,
-      "versionNonce": 1547997337,
+      "version": 41,
+      "versionNonce": 1594765751,
       "isDeleted": false,
       "boundElements": null,
-      "updated": 1770214738408,
+      "updated": 1770216188251,
       "link": null,
       "locked": false,
       "points": [
@@ -1178,8 +1098,8 @@
           0
         ],
         [
-          0.13230932135047624,
-          -107.55487737017654
+          0.13657736020718403,
+          -111.44423145535046
         ]
       ],
       "lastCommittedPoint": null,
@@ -1188,14 +1108,77 @@
         "focus": -0.11096691919122202,
         "gap": 4.5867231401492745
       },
-      "endBinding": {
-        "elementId": "97rxATt5_Yip_XvUC55FF",
-        "focus": -0.5571217223176965,
-        "gap": 17.695042439327608
-      },
+      "endBinding": null,
       "startArrowhead": null,
       "endArrowhead": "arrow",
       "elbowed": false
+    },
+    {
+      "id": "086eNufPdAytEt6dmmCOt",
+      "type": "rectangle",
+      "x": 381.77536893481766,
+      "y": 103.50493067852591,
+      "width": 684.0832944889967,
+      "height": 263.371154813902,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "index": "aZ",
+      "roundness": {
+        "type": 3
+      },
+      "seed": 1568838551,
+      "version": 91,
+      "versionNonce": 458620919,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1770216198204,
+      "link": null,
+      "locked": false
+    },
+    {
+      "id": "OCwsW9ioqhPO8YIHSIQfS",
+      "type": "text",
+      "x": 429.2681148557591,
+      "y": 132.57517871238417,
+      "width": 492.4598388671875,
+      "height": 200,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "index": "aa",
+      "roundness": null,
+      "seed": 334365207,
+      "version": 153,
+      "versionNonce": 1587603735,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1770216198204,
+      "link": null,
+      "locked": false,
+      "text": "my-skill/\n├── SKILL.md          # 核心指令        Required:\n├── scripts/          # 可执行脚本       Optional\n│   ├── validate.py\n│   ├── generate.sh\n│   └── process.js\n├── references/       # 参考文档        Optional\n└── assets/           # 模板、配置文件 Optional",
+      "fontSize": 20,
+      "fontFamily": 5,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "originalText": "my-skill/\n├── SKILL.md          # 核心指令        Required:\n├── scripts/          # 可执行脚本       Optional\n│   ├── validate.py\n│   ├── generate.sh\n│   └── process.js\n├── references/       # 参考文档        Optional\n└── assets/           # 模板、配置文件 Optional",
+      "autoResize": true,
+      "lineHeight": 1.25
     }
   ],
   "appState": {
